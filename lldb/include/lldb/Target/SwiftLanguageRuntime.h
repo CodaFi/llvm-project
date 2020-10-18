@@ -204,6 +204,14 @@ public:
   bool GetObjectDescription(Stream &str, ValueObject &object) override;
   CompilerType GetConcreteType(ExecutionContextScope *exe_scope,
                                ConstString abstract_type_name) override;
+  llvm::Optional<size_t> GetNumElementsWithPayload(CompilerType type) override;
+
+  llvm::Optional<size_t> GetNumCStyleElements(CompilerType type) override;
+
+  llvm::Optional<std::pair<lldb_private::ConstString, CompilerType>>
+  GetElementWithPayloadAtIndex(CompilerType type, size_t idx) override;
+  llvm::Optional<lldb_private::ConstString>
+  GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx) override;
 
   /// A proxy object to support lazy binding of Archetypes.
   class MetadataPromise {

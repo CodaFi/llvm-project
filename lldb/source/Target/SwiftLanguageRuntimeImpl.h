@@ -146,6 +146,15 @@ public:
 
   bool IsABIStable();
 
+public:
+  llvm::Optional<size_t> GetNumElementsWithPayload(CompilerType type);
+  llvm::Optional<size_t> GetNumCStyleElements(CompilerType type);
+
+  llvm::Optional<std::pair<lldb_private::ConstString, CompilerType>>
+  GetElementWithPayloadAtIndex(CompilerType type, size_t idx);
+  llvm::Optional<lldb_private::ConstString>
+  GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx);
+
 protected:
   /// Use the reflection context to build a TypeRef object.
   const swift::reflection::TypeRef *GetTypeRef(CompilerType type,

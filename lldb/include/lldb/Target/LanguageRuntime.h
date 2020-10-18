@@ -87,6 +87,23 @@ public:
     return CompilerType();
   }
 
+  virtual llvm::Optional<size_t> GetNumElementsWithPayload(CompilerType type) {
+    return {};
+  }
+
+  virtual llvm::Optional<size_t> GetNumCStyleElements(CompilerType type) {
+    return {};
+  }
+
+  virtual llvm::Optional<std::pair<lldb_private::ConstString, CompilerType>>
+  GetElementWithPayloadAtIndex(CompilerType type, size_t idx) {
+    return {};
+  }
+  virtual llvm::Optional<lldb_private::ConstString>
+  GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx) {
+    return {};
+  }
+
   // This should be a fast test to determine whether it is likely that this
   // value would have a dynamic type.
   virtual bool CouldHaveDynamicValue(ValueObject &in_value) = 0;

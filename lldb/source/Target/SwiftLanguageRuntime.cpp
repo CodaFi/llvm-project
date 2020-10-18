@@ -276,6 +276,27 @@ public:
     return {};
   }
 
+  llvm::Optional<size_t> GetNumElementsWithPayload(CompilerType type) {
+    STUB_LOG();
+    return {};
+  }
+
+  llvm::Optional<size_t> GetNumCStyleElements(CompilerType type) {
+    STUB_LOG();
+    return {};
+  }
+
+  llvm::Optional<std::pair<lldb_private::ConstString, CompilerType>>
+  GetElementWithPayloadAtIndex(CompilerType type, size_t idx) {
+    STUB_LOG();
+    return {};
+  }
+  llvm::Optional<lldb_private::ConstString>
+  GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx) {
+    STUB_LOG();
+    return {};
+  }
+
   bool IsValidErrorValue(ValueObject &in_value) {
     STUB_LOG();
     return {};
@@ -2157,5 +2178,26 @@ void SwiftLanguageRuntime::DidFinishExecutingUserExpression(
 }
 
 bool SwiftLanguageRuntime::IsABIStable() { FORWARD(IsABIStable); }
+
+llvm::Optional<size_t>
+SwiftLanguageRuntime::GetNumElementsWithPayload(CompilerType type) {
+  FORWARD(GetNumElementsWithPayload, type);
+}
+
+llvm::Optional<size_t>
+SwiftLanguageRuntime::GetNumCStyleElements(CompilerType type) {
+  FORWARD(GetNumCStyleElements, type);
+}
+
+llvm::Optional<std::pair<lldb_private::ConstString, CompilerType>>
+SwiftLanguageRuntime::GetElementWithPayloadAtIndex(CompilerType type,
+                                                   size_t idx) {
+  FORWARD(GetElementWithPayloadAtIndex, type, idx);
+}
+llvm::Optional<lldb_private::ConstString>
+SwiftLanguageRuntime::GetElementWithNoPayloadAtIndex(CompilerType type,
+                                                     size_t idx) {
+  FORWARD(GetElementWithNoPayloadAtIndex, type, idx);
+}
 
 } // namespace lldb_private

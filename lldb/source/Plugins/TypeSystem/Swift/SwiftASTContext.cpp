@@ -314,6 +314,11 @@ public:
     CompilerType payload_type;
     bool has_payload : 1;
     bool is_indirect : 1;
+
+    ElementInfo(lldb_private::ConstString name, CompilerType payload_type,
+                bool has_payload, bool is_indirect)
+        : name(name), payload_type(payload_type), has_payload(has_payload),
+          is_indirect(is_indirect) {}
   };
 
   Kind GetKind() const { return m_kind; }
@@ -761,34 +766,100 @@ private:
 
 class SwiftResilientEnumDescriptor : public SwiftEnumDescriptor {
   llvm::SmallString<32> m_description = {"SwiftResilientEnumDescriptor"};
-
 public:
   SwiftResilientEnumDescriptor(swift::ASTContext *ast,
                                swift::CanType swift_can_type,
                                swift::EnumDecl *enum_decl)
       : SwiftEnumDescriptor(ast, swift_can_type, enum_decl,
-                            SwiftEnumDescriptor::Kind::Resilient) {
+                            SwiftEnumDescriptor::Kind::Resilient),
+        m_swift_ast_context(ast), m_swift_can_type(swift_can_type) {
     LOG_PRINTF(LIBLLDB_LOG_TYPES, "doing resilient enum layout for %s",
                GetTypeName().AsCString());
   }
 
   virtual ElementInfo *
   GetElementFromData(const lldb_private::DataExtractor &data, bool no_payload) {
-    // Not yet supported by LLDB.
+    SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
+    if (!runtime) {
+      return nullptr;
+    }
     return nullptr;
   }
-  virtual size_t GetNumElementsWithPayload() { return 0; }
-  virtual size_t GetNumCStyleElements() { return 0; }
+  virtual size_t GetNumElementsWithPayload() {
+    SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
+    if (!runtime) {
+      return 0;
+    }
+    auto ty = ToCompilerType({m_swift_can_type});
+    return runtime->GetNumElementsWithPayload(ty).getValueOr(0);
+  }
+  virtual size_t GetNumCStyleElements() {
+    SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
+    if (!runtime) {
+      return 0;
+    }
+    auto ty = ToCompilerType({m_swift_can_type});
+    return runtime->GetNumCStyleElements(ty).getValueOr(0);
+  }
   virtual ElementInfo *GetElementWithPayloadAtIndex(size_t idx) {
-    return nullptr;
+    SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
+    if (!runtime)
+      return nullptr;
+
+    auto ty = ToCompilerType({m_swift_can_type});
+    auto case_info = runtime->GetElementWithPayloadAtIndex(ty, idx);
+    if (!case_info.hasValue())
+      return nullptr;
+
+    return std::make_unique<ElementInfo>(case_info->first, case_info->second,
+                                         /*has_payload*/ true,
+                                         /*is_indirect*/ false)
+        .release();
   }
   virtual ElementInfo *GetElementWithNoPayloadAtIndex(size_t idx) {
-    return nullptr;
+    SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
+    if (!runtime) {
+      return nullptr;
+    }
+    auto ty = ToCompilerType({m_swift_can_type});
+    auto case_name = runtime->GetElementWithNoPayloadAtIndex(ty, idx);
+    if (!case_name.hasValue())
+      return nullptr;
+
+    return std::make_unique<ElementInfo>(*case_name, CompilerType(),
+                                         /*has_payload*/ false,
+                                         /*is_indirect*/ false)
+        .release();
   }
   static bool classof(const SwiftEnumDescriptor *S) {
     return S->GetKind() == SwiftEnumDescriptor::Kind::Resilient;
   }
   virtual ~SwiftResilientEnumDescriptor() = default;
+
+private:
+  SwiftASTContext *GetSwiftASTContext() const {
+    SwiftASTContext *swift_ast_ctx =
+        SwiftASTContext::GetSwiftASTContext(m_swift_ast_context);
+    assert(swift_ast_ctx);
+    return swift_ast_ctx;
+  }
+  SwiftLanguageRuntime *GetSwiftLanguageRuntime() const {
+    SwiftASTContext *swift_ast_ctx = GetSwiftASTContext();
+    assert(swift_ast_ctx);
+    TargetSP target_sp = swift_ast_ctx->GetTarget().lock();
+    if (!target_sp)
+      return nullptr;
+
+    ProcessSP process_sp = target_sp->GetProcessSP();
+    if (!process_sp)
+      return nullptr;
+
+    return SwiftLanguageRuntime::Get(process_sp);
+  }
+
+private:
+  swift::ASTContext *m_swift_ast_context;
+  swift::CanType m_swift_can_type;
 };
 
 SwiftEnumDescriptor *

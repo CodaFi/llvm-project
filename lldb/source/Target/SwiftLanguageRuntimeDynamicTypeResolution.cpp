@@ -2244,4 +2244,60 @@ SwiftLanguageRuntimeImpl::GetConcreteType(ExecutionContextScope *exe_scope,
   return promise_sp->FulfillTypePromise();
 }
 
+llvm::Optional<size_t>
+SwiftLanguageRuntimeImpl::GetNumElementsWithPayload(CompilerType type) {
+  auto *type_info = GetTypeInfo(type, nullptr);
+  if (!type_info ||
+      type_info->getKind() != swift::reflection::TypeInfoKind::Enum)
+    return {};
+
+  auto *enum_type_info = cast<swift::reflection::EnumTypeInfo>(type_info);
+  return enum_type_info->getNumPayloadCases();
+}
+
+llvm::Optional<size_t>
+SwiftLanguageRuntimeImpl::GetNumCStyleElements(CompilerType type) {
+  auto *type_info = GetTypeInfo(type, nullptr);
+  if (!type_info ||
+      type_info->getKind() != swift::reflection::TypeInfoKind::Enum)
+    return {};
+
+  auto *enum_type_info = cast<swift::reflection::EnumTypeInfo>(type_info);
+  return enum_type_info->getNumCases() - enum_type_info->getNumPayloadCases();
+}
+
+llvm::Optional<std::pair<lldb_private::ConstString, CompilerType>>
+SwiftLanguageRuntimeImpl::GetElementWithPayloadAtIndex(CompilerType type,
+                                                       size_t idx) {
+  auto *type_info = GetTypeInfo(type, nullptr);
+  if (!type_info ||
+      type_info->getKind() != swift::reflection::TypeInfoKind::Enum)
+    return {};
+  auto *enum_type_info = cast<swift::reflection::EnumTypeInfo>(type_info);
+  const swift::reflection::FieldInfo &enum_case =
+      enum_type_info->getCases()[idx];
+  ConstString name_cs(enum_case.Name.c_str(), enum_case.Name.size());
+
+  swift::Demangle::Demangler dem;
+  swift::Demangle::NodePointer node = enum_case.TR->getDemangling(dem);
+  CompilerType bound_type =
+      cast<SwiftASTContext>(type.GetTypeSystem())
+          ->GetTypeFromMangledTypename(ConstString("$s" + mangleNode(node)));
+  return std::make_pair(name_cs, bound_type);
+}
+
+llvm::Optional<lldb_private::ConstString>
+SwiftLanguageRuntimeImpl::GetElementWithNoPayloadAtIndex(CompilerType type,
+                                                         size_t idx) {
+  auto *type_info = GetTypeInfo(type, nullptr);
+  if (!type_info ||
+      type_info->getKind() != swift::reflection::TypeInfoKind::Enum)
+    return {};
+  auto *enum_type_info = cast<swift::reflection::EnumTypeInfo>(type_info);
+  const swift::reflection::FieldInfo &enum_case =
+      enum_type_info->getCases()[idx];
+  ConstString name_cs(enum_case.Name.c_str(), enum_case.Name.size());
+  return name_cs;
+}
+
 } // namespace lldb_private
