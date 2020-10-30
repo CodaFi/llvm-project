@@ -327,6 +327,7 @@ public:
 
   virtual ElementInfo *
   GetElementFromData(const lldb_private::DataExtractor &data,
+                     const Address &addr,
                      bool no_payload) = 0;
 
   virtual size_t GetNumElements() {
@@ -374,7 +375,7 @@ public:
                             SwiftEnumDescriptor::Kind::Empty) {}
 
   virtual ElementInfo *
-  GetElementFromData(const lldb_private::DataExtractor &data, bool no_payload) {
+  GetElementFromData(const lldb_private::DataExtractor &data, const Address &addr, bool no_payload) {
     return nullptr;
   }
 
@@ -485,7 +486,7 @@ public:
   }
 
   virtual ElementInfo *
-  GetElementFromData(const lldb_private::DataExtractor &data, bool no_payload) {
+  GetElementFromData(const lldb_private::DataExtractor &data, const Address &addr, bool no_payload) {
     LOG_PRINTF(LIBLLDB_LOG_TYPES,
                "C-style enum - inspecting data to find enum case for type %s",
                GetTypeName().AsCString());
@@ -625,7 +626,7 @@ public:
   }
 
   virtual ElementInfo *
-  GetElementFromData(const lldb_private::DataExtractor &data, bool no_payload) {
+  GetElementFromData(const lldb_private::DataExtractor &data, const Address &addr, bool no_payload) {
     LOG_PRINTF(LIBLLDB_LOG_TYPES,
                "ADT-style enum - inspecting data to find enum case for type %s",
                GetTypeName().AsCString());
@@ -730,7 +731,7 @@ public:
         m_payload_cases(ast, swift_can_type, enum_decl) {}
 
   virtual ElementInfo *
-  GetElementFromData(const lldb_private::DataExtractor &data, bool no_payload) {
+  GetElementFromData(const lldb_private::DataExtractor &data, const Address &addr, bool no_payload) {
     ElementInfo *elem_info =
         m_non_payload_cases.GetElementFromData(data, false);
     return elem_info ? elem_info
@@ -778,12 +779,26 @@ public:
   }
 
   virtual ElementInfo *
-  GetElementFromData(const lldb_private::DataExtractor &data, bool no_payload) {
+  GetElementFromData(const lldb_private::DataExtractor &data, const Address &addr, bool no_payload) {
     SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
     if (!runtime) {
       return nullptr;
     }
-    return nullptr;
+
+    auto ty = ToCompilerType({m_swift_can_type});
+    lldb::offset_t offset = 0;
+    lldb::addr_t fn_ptr_addr = data.;
+    auto maybe_index = runtime->GetResilientEnumTag(ty, fn_ptr_addr);
+    if (!maybe_index.hasValue()) {
+      return nullptr;
+    }
+
+    auto idx = *maybe_index;
+    if (idx < runtime->GetNumElementsWithPayload(ty).getValueOr(0)) {
+      return GetElementWithPayloadAtIndex(idx);
+    } else {
+      return GetElementWithNoPayloadAtIndex(idx);
+    }
   }
   virtual size_t GetNumElementsWithPayload() {
     SwiftLanguageRuntime *runtime = GetSwiftLanguageRuntime();
@@ -813,7 +828,7 @@ public:
 
     return std::make_unique<ElementInfo>(case_info->first, case_info->second,
                                          /*has_payload*/ true,
-                                         /*is_indirect*/ false)
+                                         /*is_indirect*/ true)
         .release();
   }
   virtual ElementInfo *GetElementWithNoPayloadAtIndex(size_t idx) {
@@ -828,7 +843,7 @@ public:
 
     return std::make_unique<ElementInfo>(*case_name, CompilerType(),
                                          /*has_payload*/ false,
-                                         /*is_indirect*/ false)
+                                         /*is_indirect*/ true)
         .release();
   }
   static bool classof(const SwiftEnumDescriptor *S) {
@@ -7552,7 +7567,8 @@ bool SwiftASTContext::GetSelectedEnumCase(const CompilerType &type,
                                           const DataExtractor &data,
                                           ConstString *name, bool *has_payload,
                                           CompilerType *payload,
-                                          bool *is_indirect) {
+                                          bool *is_indirect,
+                                          const Address &addr) {
   swift::CanType swift_can_type = ::GetCanonicalSwiftType(type);
   if (!swift_can_type)
     return false;
@@ -7561,7 +7577,7 @@ bool SwiftASTContext::GetSelectedEnumCase(const CompilerType &type,
       ast->GetCachedEnumInfo(swift_can_type.getPointer());
   if (!cached_enum_info)
     return false;
-  auto enum_elem_info = cached_enum_info->GetElementFromData(data, true);
+  auto enum_elem_info = cached_enum_info->GetElementFromData(data, addr, true);
   if (!enum_elem_info)
     return false;
   if (name)
@@ -7717,7 +7733,8 @@ void SwiftASTContext::DumpValue(
 
 bool SwiftASTContext::DumpTypeValue(
     opaque_compiler_type_t type, Stream *s, lldb::Format format,
-    const lldb_private::DataExtractor &data, lldb::offset_t byte_offset,
+    const lldb_private::DataExtractor &data, const Address &addr,
+    lldb::offset_t byte_offset,
     size_t byte_size, uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
     ExecutionContextScope *exe_scope, bool is_base_class) {
   VALID_OR_RETURN(false);
@@ -7827,7 +7844,7 @@ bool SwiftASTContext::DumpTypeValue(
   case swift::TypeKind::UnownedStorage:
   case swift::TypeKind::WeakStorage:
     return ToCompilerType(swift_can_type->getReferenceStorageReferent())
-        .DumpTypeValue(s, format, data, byte_offset, byte_size,
+        .DumpTypeValue(s, format, data, addr, byte_offset, byte_size,
                        bitfield_bit_size, bitfield_bit_offset, exe_scope,
                        is_base_class);
   case swift::TypeKind::Enum:

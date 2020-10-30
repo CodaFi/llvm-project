@@ -212,6 +212,8 @@ public:
   GetElementWithPayloadAtIndex(CompilerType type, size_t idx) override;
   llvm::Optional<lldb_private::ConstString>
   GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx) override;
+  llvm::Optional<int>
+  GetResilientEnumTag(CompilerType type, lldb::addr_t valueAddr) override;
 
   /// A proxy object to support lazy binding of Archetypes.
   class MetadataPromise {

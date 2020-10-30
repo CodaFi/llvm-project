@@ -155,6 +155,9 @@ public:
   llvm::Optional<lldb_private::ConstString>
   GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx);
 
+  llvm::Optional<int>
+  GetResilientEnumTag(CompilerType type, lldb::addr_t valueAddr);
+
 protected:
   /// Use the reflection context to build a TypeRef object.
   const swift::reflection::TypeRef *GetTypeRef(CompilerType type,

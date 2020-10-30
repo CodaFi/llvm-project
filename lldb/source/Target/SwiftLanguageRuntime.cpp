@@ -296,6 +296,11 @@ public:
     STUB_LOG();
     return {};
   }
+  llvm::Optional<int>
+  GetResilientEnumTag(CompilerType type, lldb::addr_t valueAddr) {
+    STUB_LOG();
+    return {};
+  }
 
   bool IsValidErrorValue(ValueObject &in_value) {
     STUB_LOG();
@@ -2198,6 +2203,11 @@ llvm::Optional<lldb_private::ConstString>
 SwiftLanguageRuntime::GetElementWithNoPayloadAtIndex(CompilerType type,
                                                      size_t idx) {
   FORWARD(GetElementWithNoPayloadAtIndex, type, idx);
+}
+
+llvm::Optional<int>
+SwiftLanguageRuntime::GetResilientEnumTag(CompilerType type, lldb::addr_t valueAddr) {
+  FORWARD(GetResilientEnumTag, type, valueAddr);
 }
 
 } // namespace lldb_private

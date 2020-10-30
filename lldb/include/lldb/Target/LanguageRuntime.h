@@ -103,6 +103,10 @@ public:
   GetElementWithNoPayloadAtIndex(CompilerType type, size_t idx) {
     return {};
   }
+  virtual llvm::Optional<int>
+  GetResilientEnumTag(CompilerType type, lldb::addr_t valueAddr) {
+    return {};
+  }
 
   // This should be a fast test to determine whether it is likely that this
   // value would have a dynamic type.

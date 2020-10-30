@@ -1619,7 +1619,7 @@ bool SwiftLanguageRuntimeImpl::GetDynamicTypeAndAddress_IndirectEnumCase(
   CompilerType payload_type;
   if (!SwiftASTContext::GetSelectedEnumCase(
           in_value.GetParent()->GetCompilerType(), data, nullptr, &has_payload,
-          &payload_type, &is_indirect))
+          &payload_type, &is_indirect, address))
     return false;
 
   if (has_payload && is_indirect && payload_type)
@@ -2298,6 +2298,31 @@ SwiftLanguageRuntimeImpl::GetElementWithNoPayloadAtIndex(CompilerType type,
       enum_type_info->getCases()[idx];
   ConstString name_cs(enum_case.Name.c_str(), enum_case.Name.size());
   return name_cs;
+}
+
+llvm::Optional<int>
+SwiftLanguageRuntimeImpl::GetResilientEnumTag(CompilerType type,
+                                              lldb::addr_t valueAddr) {
+  auto *reflection_ctx = GetReflectionContext();
+  if (!reflection_ctx)
+    return {};
+
+  auto *ts = llvm::dyn_cast_or_null<TypeSystemSwift>(type.GetTypeSystem());
+  if (!ts)
+    return {};
+
+  const swift::reflection::TypeRef *type_ref =
+      GetTypeRef(type, ts->GetSwiftASTContext());
+  if (!type_ref)
+    return {};
+
+  LLDBTypeInfoProvider provider(*this, *ts);
+  int Index = 0;
+  if (!reflection_ctx->projectEnumValue(swift::reflection::RemoteAddress(valueAddr), type_ref, &Index, &provider)) {
+    return Index;
+  }
+
+  return Index;
 }
 
 } // namespace lldb_private

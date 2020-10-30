@@ -98,11 +98,13 @@ bool TypeFormatImpl_Format::FormatObject(ValueObject *valobj,
             return false;
         }
 
+        Address address(valobj->GetPointerValue());
         StreamString sstr;
         compiler_type.DumpTypeValue(
             &sstr,                          // The stream to use for display
             GetFormat(),                    // Format to display this type with
             data,                           // Data to extract from
+            address,
             0,                              // Byte offset into "m_data"
             *size,                          // Byte size of item in "m_data"
             valobj->GetBitfieldBitSize(),   // Bitfield bit size
@@ -188,8 +190,9 @@ bool TypeFormatImpl_EnumType::FormatObject(ValueObject *valobj,
     return false;
   ExecutionContext exe_ctx(valobj->GetExecutionContextRef());
   StreamString sstr;
+  
   valobj_enum_type.DumpTypeValue(
-      &sstr, lldb::eFormatEnum, data, 0, data.GetByteSize(), 0, 0,
+      &sstr, lldb::eFormatEnum, data, valobj->GetPointerValue(), data.GetByteSize(), 0, 0,
       exe_ctx.GetBestExecutionContextScope(), valobj->IsBaseClass());
   if (!sstr.GetString().empty())
     dest = std::string(sstr.GetString());
